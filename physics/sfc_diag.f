@@ -41,6 +41,8 @@
 !! | fh             | Monin-Obukhov_similarity_function_for_heat                                   | Monin-Obukhov similarity parameter for heat                 | none          |    1 | real      | kind_phys | in     | F        |
 !! | fm10           | Monin-Obukhov_similarity_function_for_momentum_at_10m                        | Monin-Obukhov similarity parameter for momentum             | none          |    1 | real      | kind_phys | in     | F        |
 !! | fh2            | Monin-Obukhov_similarity_function_for_heat_at_2m                             | Monin-Obukhov similarity parameter for heat                 | none          |    1 | real      | kind_phys | in     | F        |
+!! | rh2m           | relative_humidity_at_2m                                                      | relative humidity 2m above ground                           | percent       |    1 | real      | kind_phys | out    | F        |
+!! | ws6m           | wind_speed_at_6m_in_miles_per_hour                                           | wind speed 6m above ground in miles per hour                | mi h-1        |    1 | real      | kind_phys | out    | F        |
 !! | errmsg         | ccpp_error_message                                                           | error message for error handling in CCPP                    | none          |    0 | character | len=*     | out    | F        |
 !! | errflg         | ccpp_error_flag                                                              | error flag for error handling in CCPP                       | flag          |    0 | integer   |           | out    | F        |
 !!
@@ -50,7 +52,8 @@
       subroutine sfc_diag_run                                           &
      &                   (im,grav,cp,eps,epsm1,ps,u1,v1,t1,q1,          &
      &                    tskin,qsurf,f10m,u10m,v10m,t2m,q2m,           &
-     &                    prslki,evap,fm,fh,fm10,fh2,errmsg,errflg      &
+     &                    prslki,evap,fm,fh,fm10,fh2,rh2m,ws6m,         &
+     &                    errmsg,errflg                                 &
      &                   )
 !
       use machine , only : kind_phys
@@ -63,7 +66,7 @@
      &                       ps, u1, v1, t1, q1, tskin,                 &
      &                       qsurf, prslki, evap, fm, fh, fm10, fh2
       real(kind=kind_phys), dimension(im), intent(out) ::               &
-     &                       f10m, u10m, v10m, t2m, q2m
+     &                       f10m, u10m, v10m, t2m, q2m, rh2m, ws6m
       character(len=*), intent(out) :: errmsg
       integer,          intent(out) :: errflg
 !
@@ -112,6 +115,20 @@
         qss    = fpvs(t2m(i))
         qss    = eps * qss / (ps(i) + epsm1 * qss)
         q2m(i) = min(q2m(i),qss)
+
+        ! For Modified Red Flag Threat Index calculation,
+        ! relative humidity 2m above ground in percent
+        rh2m(i) = 100.0*q2m(i)/qss
+
+        ! Wind speed 6m above ground in miles per hour,
+        ! conversion factor from 10m to 6m is 0.886
+        ! (Lindley et al., 2011), and m/s to mi/h is 2.23694
+        ws6m(i) = sqrt(u10m(i)**2 + v10m(i)**2) * 0.886 * 2.23694
+
+        write(0,'(a, i5,8e12.4)')
+     &"DH sfc_diag_run: i, q2m, t2m, ps, qss, rh2m, u10m, v10m, ws6m:",
+     &i, q2m(i), t2m(i), ps(i), qss, rh2m(i), u10m(i), v10m(i), ws6m(i)
+
       enddo
 
       return
