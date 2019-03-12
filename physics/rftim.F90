@@ -1,3 +1,6 @@
+!>\file rftim.F90
+!! This file contains the modified Red Flag Threat Index calculation.
+
 module rftim
 
    use machine, only : kind_phys
@@ -22,6 +25,9 @@ contains
       ! that were allocated in subroutine rftim_init
    end subroutine rftim_finalize
 
+!>\defgroup rftim_cal The Modified Red Flag Threat Index Calculation
+!!\brief This module calculates RFTIM using the 2m relative humidity in percent
+!! and 6m wind speed in miles per hour (Lindley et al.(2011) \cite lindley_et_al_2011) .
 !> \section arg_table_rftim_run Argument Table
 !! | local_name | standard_name                      | long_name                                     | units         | rank | type      |    kind   | intent | optional |
 !! |------------|------------------------------------|-----------------------------------------------|---------------|------|-----------|-----------|--------|----------|
@@ -35,6 +41,8 @@ contains
 !! | errmsg     | ccpp_error_message                 | error message for error handling in CCPP      | none          |    0 | character | len=*     | out    | F        |
 !! | errflg     | ccpp_error_flag                    | error flag for error handling in CCPP         | flag          |    0 | integer   |           | out    | F        |
 !!
+!!\section gen_rftim The MRFTI General Algorithm
+!! @{
    subroutine rftim_run (im, lat, lon, islmsk, rh2, ws6, rftim, errmsg, errflg)
       ! Input
       integer,                          intent(in)  :: im
@@ -47,35 +55,20 @@ contains
       real(kind_phys), dimension(1:im), intent(out) :: rftim
       character(len=*),                 intent(out) :: errmsg
       integer,                          intent(out) :: errflg
-      ! DH* DEBUGGING
-      ! Local variables
-      integer :: i
-      integer :: rftim_int_tmp
 
       ! Set CCPP error handling variables
       errmsg = ''
       errflg = 0
 
-      !do i=1,im
-      !   rftim(i) = real(rfti_rh_clima(lat(i), lon(i), rh2(i)) + rfti_ws_clima(lat(i), lon(i), ws6(i)), kind_phys)
-      !end do
-
+      ! Apply calculation only for grid points with islmsk(i) == 1 (land points),
+      ! since it doesn't make sense to calculate a fire threat index over water
       where (islmsk == 1)
          rftim = real(rfti_rh_clima(lat, lon, rh2) + rfti_ws_clima(lat, lon, ws6), kind_phys)
       else where
          rftim = 0.0
       end where
 
-      do i=1,im
-         if (islmsk(i) == 1) then
-            rftim_int_tmp = rfti_rh_clima(lat(i), lon(i), rh2(i)) + rfti_ws_clima(lat(i), lon(i), ws6(i))
-         else
-            rftim_int_tmp = 0
-         end if
-         write(0,'(a,2i5,3e12.4,i5)') "DH rftim_run: i, islmsk, rh2, ws6, rftim, rftim_int_tmp", &
-                 i, islmsk(i), rh2(i), ws6(i), rftim(i), rftim_int_tmp
-      end do
-
    end subroutine rftim_run
+!! @}
 
 end module rftim
